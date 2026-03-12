@@ -1,5 +1,6 @@
 import { VerificationResult, Riddle } from "../models/GameModels";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import yaml from 'js-yaml';
 
 /**
  * AIManager - Orchestrates AI services for the app.
@@ -12,41 +13,75 @@ class AIManager {
     }
 
     /**
-     * Generates a new daily riddle.
+     * Generates a new batch of daily riddles in YAML format.
      */
-    async generateDailyRiddle(category = "general") {
+    async generateRiddleBatchYaml(count, exclusionList) {
+        const cocoSsdLabels = ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"];
+        
         const prompt = `
-            Generate a clever riddle for a scavenger hunt about a common item found in ${category}.
-            The riddle should be mysterious but solvable by finding a real-world object.
+            You are a creative puzzle master designing a real-world scavenger hunt for a mobile app.
+            Your task is to generate EXACTLY ${count} unique riddles.
             
-            Return JSON only:
-            {
-              "text": "The riddle text",
-              "answer": "The core object name",
-              "difficulty": 1-5
-            }
+            RULES:
+            1. The target 'answer' for each riddle MUST be one of these exact supported objects: ${cocoSsdLabels.join(', ')}.
+            2. NEGATIVE CONSTRAINT: DO NOT use any of these items as the target answer, as they were recently used: [${exclusionList.join(', ')}]. If you do, the game breaks.
+            3. The riddle should describe the object cleverly without saying its name directly.
+            
+            Return ONLY a valid YAML format representing a list of riddles. EXACTLY this format, nothing else (no markdown blocks):
+            riddles:
+              - text: "Your clever riddle here"
+                targetLabel: "exact item name from supported list"
+              - text: "Another riddle"
+                targetLabel: "another item"
         `;
 
         try {
             if (!this.geminiAi.apiKey) throw new Error("Gemini API Key missing");
-            console.log("Generating riddle with Gemini AI...");
-            const model = this.geminiAi.getGenerativeModel({ model: "gemini-2.0-flash" });
+            console.log(`Generating ${count} riddles with Gemini AI...`);
+            
+            const model = this.geminiAi.getGenerativeModel({ 
+                model: "gemini-2.0-flash",
+                generationConfig: {
+                    temperature: 0.85, 
+                    topP: 1.0     
+                }
+            });
+            
             const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
-            return this.parseRiddleResponse(responseText, category);
+            let responseText = result.response.text();
+            
+            // Extract from markdown block if present
+            const yamlMatch = responseText.match(/```(?:yaml)?\n([\s\S]*?)```/);
+            if (yamlMatch) {
+                responseText = yamlMatch[1].trim();
+            }
+
+            console.log("Gemini successfully generated YAML:", responseText.substring(0, 50) + "...");
+            return responseText;
+
         } catch (e) {
-            console.warn("Gemini AI riddle generation failed:", e.message);
+            console.warn("Gemini AI YAML generation failed:", e.message);
             // Fallback to Groq
             try {
-                if (!this.groqApiKey) throw new Error("Groq API Key missing");
-                console.log("Trying Groq for riddle generation...");
-                // Fast fallback for text generation
-                const responseText = await this.groqTextCompletion(prompt);
-                return this.parseRiddleResponse(responseText, category);
+                if (!this.groqApiKey) throw new Error("Groq API Key missing also");
+                console.log(`Falling back to Groq Llama for ${count} riddles...`);
+                
+                let responseText = await this.groqTextCompletion(prompt);
+                console.log("Raw Groq output snippet:", responseText.substring(0, 100));
+                
+                // Extract from markdown block if present
+                const yamlMatch = responseText.match(/```(?:yaml)?\n([\s\S]*?)```/);
+                if (yamlMatch) {
+                    console.log("Groq YAML block extracted!");
+                    responseText = yamlMatch[1].trim();
+                } else {
+                    console.log("No markdown code block found in Groq response. Using raw string.");
+                }
+
+                return responseText;
             } catch (groqError) {
-                console.error("Groq riddle generation also failed:", groqError.message);
-                console.log("Using built-in sample riddle as fallback.");
-                return Riddle.SAMPLE;
+                console.error("Groq AI YAML generation also failed completely:", groqError.message);
+                return null;
             }
         }
     }
@@ -123,7 +158,7 @@ class AIManager {
 
     async groqTextCompletion(prompt) {
         const requestBody = {
-            model: "llama3-8b-8192", // Fast text model
+            model: "llama-3.3-70b-versatile", // Smartest model for strict formatting
             messages: [{ role: "user", content: prompt }],
             temperature: 0.7,
             max_tokens: 1024,

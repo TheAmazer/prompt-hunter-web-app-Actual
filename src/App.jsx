@@ -1,8 +1,9 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Home, Camera, UserCircle } from 'lucide-react';
+import { Home, Camera, UserCircle, ShieldCheck } from 'lucide-react';
 import HomeView from './components/HomeView';
 import CameraView from './components/CameraView';
 import ProfileView from './components/ProfileView';
+import AdminPortalView from './components/AdminPortalView';
 import './index.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<HomeView />} />
           <Route path="/hunt" element={<CameraView />} />
           <Route path="/profile" element={<ProfileView />} />
+          <Route path="/admin" element={<AdminPortalView />} />
         </Routes>
       </div>
 
@@ -42,6 +44,15 @@ function App() {
         >
           <UserCircle />
           <span>Profile</span>
+        </div>
+
+        {/* Temporary Admin Link for development/testing */}
+        <div
+          className={`nav-item ${location.pathname === '/admin' ? 'active' : ''}`}
+          onClick={() => navigate('/admin')}
+        >
+          <ShieldCheck />
+          <span>Admin</span>
         </div>
       </nav>
     </div>

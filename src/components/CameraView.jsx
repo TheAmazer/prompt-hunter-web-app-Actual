@@ -2,14 +2,17 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Camera as CameraIcon, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import VisionService from '../services/VisionService';
 import AIManager from '../services/AIManager';
+import { useRiddleBuffer } from '../hooks/useRiddleBuffer';
 
 export default function CameraView() {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const overlayCanvasRef = useRef(null);
 
+    const { activeRiddles, markRiddleUsed } = useRiddleBuffer();
+    const currentRiddle = activeRiddles.length > 0 ? activeRiddles[0] : null;
+
     const [stream, setStream] = useState(null);
-    const [riddle, setRiddle] = useState(null);
     const [detectedLabels, setDetectedLabels] = useState([]);
     const [status, setStatus] = useState('hunting'); // hunting, verifying, success, failed
     const [feedback, setFeedback] = useState('');
@@ -30,12 +33,6 @@ export default function CameraView() {
             }
         }
         startCamera();
-
-        // Load riddle map
-        const stored = sessionStorage.getItem('daily_riddle');
-        if (stored) {
-            setRiddle(JSON.parse(stored));
-        }
 
         return () => {
             // Cleanup
@@ -83,7 +80,7 @@ export default function CameraView() {
     }, [status]);
 
     const captureAndVerify = async () => {
-        if (!videoRef.current || !canvasRef.current || !riddle) return;
+        if (!videoRef.current || !canvasRef.current || !currentRiddle) return;
 
         setStatus('verifying'); // triggers UI
 
@@ -95,10 +92,15 @@ export default function CameraView() {
         const base64Image = canvasRef.current.toDataURL('image/jpeg', 0.8);
 
         // Verify using AI
-        const result = await AIManager.verifyAnswer(base64Image, riddle);
+        const result = await AIManager.verifyAnswer(base64Image, currentRiddle);
 
         setFeedback(result.feedback);
-        setStatus(result.isCorrect ? 'success' : 'failed');
+        if (result.isCorrect) {
+            setStatus('success');
+            await markRiddleUsed(currentRiddle.id);
+        } else {
+            setStatus('failed');
+        }
     };
 
     const reset = () => {
@@ -110,7 +112,7 @@ export default function CameraView() {
         <div className="animate-fade-in" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div className="glass-panel mb-4">
                 <h3 className="text-center gradient-text" style={{ fontSize: '1rem' }}>
-                    {riddle?.text || "Find the object..."}
+                    {currentRiddle?.text || "Searching for riddles..."}
                 </h3>
             </div>
 

@@ -38,9 +38,36 @@ PromptHunter is an interactive, AI-powered scavenger hunt web application. It ch
    ```
 
 3. Set up environment variables:
-   Create a `.env` file in the root directory and add your Firebase and Gemini API keys.
+   Create a `.env.local` file in the root directory and add your Firebase and Generative AI API keys:
+   ```env
+   VITE_FIREBASE_API_KEY="your-api-key"
+   VITE_FIREBASE_AUTH_DOMAIN="your-auth-domain"
+   VITE_FIREBASE_PROJECT_ID="your-project-id"
+   VITE_FIREBASE_STORAGE_BUCKET="your-storage-bucket"
+   VITE_FIREBASE_MESSAGING_SENDER_ID="your-sender-id"
+   VITE_FIREBASE_APP_ID="your-app-id"
 
-4. Run the development server:
+   # Add Gemini or Groq API keys based on your preference
+   VITE_GEMINI_API_KEY="your-gemini-key"
+   # VITE_GROQ_API_KEY="your-groq-key"
+   ```
+
+4. Set up Firebase Firestore:
+   - Create a free Firebase project and register a Web App.
+   - Go to **Build > Firestore Database** and create a new database.
+   - Update your **Rules** to allow read/write during development:
+     ```javascript
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{database}/documents {
+         match /{document=**} {
+           allow read, write: if true;
+         }
+       }
+     }
+     ```
+
+5. Run the development server:
    ```bash
    npm run dev
    ```

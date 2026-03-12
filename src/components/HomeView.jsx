@@ -1,29 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, Trophy, Flame } from 'lucide-react';
-import AIManager from '../services/AIManager';
+import { Target, Trophy, Flame, RefreshCw } from 'lucide-react';
+import { useRiddleBuffer } from '../hooks/useRiddleBuffer';
 
 export default function HomeView() {
     const navigate = useNavigate();
-    const [riddle, setRiddle] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { activeRiddles, isLoading, isRefilling } = useRiddleBuffer();
+    
+    // DEBUG LOGGING
+    console.log("HomeView Render ->", { 
+        activeRiddlesCount: activeRiddles.length, 
+        isLoading, 
+        isRefilling,
+        riddles: activeRiddles 
+    });
 
-    useEffect(() => {
-        async function fetchRiddle() {
-            // Typically fetch from Firestore, but for now generate on the fly or load from session storage
-            const stored = sessionStorage.getItem('daily_riddle');
-            if (stored) {
-                setRiddle(JSON.parse(stored));
-                setLoading(false);
-            } else {
-                const newRiddle = await AIManager.generateDailyRiddle("office or household");
-                setRiddle(newRiddle);
-                sessionStorage.setItem('daily_riddle', JSON.stringify(newRiddle));
-                setLoading(false);
-            }
-        }
-        fetchRiddle();
-    }, []);
+    const currentRiddle = activeRiddles.length > 0 ? activeRiddles[0] : null;
 
     return (
         <div className="animate-fade-in">
@@ -50,20 +42,25 @@ export default function HomeView() {
                 <h2 className="mb-4 flex-center" style={{ gap: '0.5rem' }}>
                     <Target /> Today's Riddle
                 </h2>
-                {loading ? (
-                    <div className="text-center animate-pulse" style={{ padding: '2rem 0' }}>
-                        Consulting the AI Oracles...
+                {isLoading || (activeRiddles.length === 0 && isRefilling) ? (
+                    <div className="text-center animate-pulse flex-center" style={{ flexDirection: 'column', padding: '2rem 0', gap: '1rem' }}>
+                        <RefreshCw size={32} className="gradient-text" style={{ animation: 'spin 2s linear infinite' }} />
+                        Consulting the AI Oracles for new riddles...
                     </div>
-                ) : (
+                ) : currentRiddle ? (
                     <div>
                         <p style={{ fontSize: '1.25rem', fontStyle: 'italic', marginBottom: '1.5rem' }}>
-                            "{riddle?.text}"
+                            "{currentRiddle.text}"
                         </p>
                         <div className="flex-center">
                             <button className="btn-primary" onClick={() => navigate('/hunt')} style={{ width: '100%' }}>
                                 Start Hunting
                             </button>
                         </div>
+                    </div>
+                ) : (
+                    <div className="text-center text-secondary" style={{ padding: '2rem 0' }}>
+                        No riddles available right now. Please try again later.
                     </div>
                 )}
             </div>

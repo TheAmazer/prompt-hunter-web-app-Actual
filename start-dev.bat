@@ -15,8 +15,4 @@ echo [2/3] Starting Frontend (Vite)...
 :: Runs 'npm run dev'. Errors are captured in error.log. If it crashes, it outputs a message and pauses to keep window open.
 start "Vite Frontend" cmd /k "npm run dev 2>> error.log || (echo [CRASH] Frontend failed. Check error.log & pause)"
 
-echo [3/3] Starting Backend (Node.js)...
-:: Replace 'node server.js' below with your actual backend start command if different (e.g., 'npm start' in your server folder).
-start "Node Backend" cmd /k "node server.js 2>> error.log || (echo [CRASH] Backend failed. Check error.log & pause)"
-
-echo Done! Both servers are starting up in separate windows. Allow them a moment to initialize.
+echo Done! The frontend server is starting up in a separate window. Allow it a moment to initialize.
